@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Variables
-filePath=$HOME/Downloads/SHN-DLP-Monitor.app
+filePath=$HOME/Downloads/
+fileName="SHN-DLP-Monitor.app"
 domain="yourdomain"
 appName="SHN DLP Monitor"
 
@@ -93,19 +94,55 @@ echo "Selected site: $selected_site"
 
 echo ""
 # -------------------------------------
-if [ -f "$HOME/Downloads/SHN-DLP-Monitor.app" ]; then
-    print_green "SHN-DLP-Monitor.app found in $HOME/Downloads directory." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.05; done; echo ""
+
+if [ -f "$HOME/Downloads/$fileName" ]; then
+    print_green "$fileName found in $HOME/Downloads directory." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.05; done; echo ""
     echo ""
 else
-    print_red "SHN-DLP-Monitor.app NOT found in $HOME/Downloads directory." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.04; done; echo ""
+    print_red "$fileName NOT found in $HOME/Downloads directory." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.04; done; echo ""
     echo ""
-    read -p "Please enter the full file path to SHN-DLP-Monitor.app: " filePath
-    # Check if the entered file path is valid
-    while [ ! -f "$filePath" ]; do
-        read -p "Invalid file path. Please enter the full file path to SHN-DLP-Monitor.app: " filePath
+    PS3="Please select an option: "
+    options=("Enter file path" "Download $fileName for USPROD" "Download $fileName for US GovCloud" "Quit")
+    select opt in "${options[@]}"
+    do
+        case $opt in
+            "Enter file path")
+                read -p "Please enter the full file path to $fileName: " filePath
+                while [ ! -f "$filePath" ]; do
+                    read -p "Invalid file path. Please enter the full file path to $fileName: " filePath
+                done
+                break
+                ;;
+            "Download $fileName for USPROD")
+                # download file code here
+                echo ""
+                echo "wget --quiet "https://success.myshn.net/@api/deki/files/4697/SHN-DLP-Monitor.app?revision=2" -O "$HOME/SHN-DLP-Monitor.app""
+                echo ""
+                echo "$fileName downloaded to $HOME directory."
+                echo ""
+                filePath="$HOME/Downloads/$fileName"
+                echo $filePath
+                echo ""
+                break
+                ;;
+            "Download $fileName for US GovCloud")
+                # download file code here
+                echo "wget --quiet "https://success.myshn.net/@api/deki/files/7233/SHN-Security-Integrator-GovCloud.zip?revision=1" -O "$HOME/SHN-Security-Integrator-GovCloud.zip""
+                echo "$fileName downloaded to $HOME directory."
+                filePath="$HOME/Downloads/$fileName"
+                echo $filePath
+                break
+                ;;
+            "Quit")
+                exit
+                ;;
+            *) echo "Invalid option $REPLY";;
+        esac
     done
 fi
 
+
+# -------------------------------------
 north_america_timezones=(
   "(GMT-05:00) Eastern Time (U.S. and Canada)"
   "(GMT-06:00) Central Time (U.S. and Canada)"
