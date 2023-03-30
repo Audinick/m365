@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # Variables
-filePath=$HOME/Downloads/
+filePath=$HOME/Downloads
 fileName="SHN-DLP-Monitor.app"
+fileNameGov="SHN-Security-Integrator-GovCloud.zip"
 domain="yourdomain"
 appName="SHN DLP Monitor"
+
 
 # Function to output red text
 print_red() {
@@ -114,27 +116,25 @@ else
                 break
                 ;;
             "Download $fileName for USPROD")
-                # download file code here
                 echo ""
-                echo "wget --quiet "https://success.myshn.net/@api/deki/files/4697/SHN-DLP-Monitor.app?revision=2" -O "$HOME/SHN-DLP-Monitor.app""
-                echo ""
-                echo "$fileName downloaded to $HOME directory."
-                echo ""
-                filePath="$HOME/Downloads/$fileName"
-                echo $filePath
+                wget -cq "https://success.myshn.net/@api/deki/files/4697/SHN-DLP-Monitor.app?revision=2" -O "$filePath/SHN-DLP-Monitor.app"
+                if [ -f "$filePath/SHN-DLP-Monitor.app" ]; then
+                    print_green "$fileName downloaded to $filePath directory." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.05; done; echo ""
+                else
+                    echo "Error: $fileName not downloaded to $filePath directory."
+                fi
                 echo ""
                 break
                 ;;
             "Download $fileName for US GovCloud")
-                # download file code here
-                echo "wget --quiet "https://success.myshn.net/@api/deki/files/7233/SHN-Security-Integrator-GovCloud.zip?revision=1" -O "$HOME/SHN-Security-Integrator-GovCloud.zip""
-                echo "$fileName downloaded to $HOME directory."
-                filePath="$HOME/Downloads/$fileName"
-                echo $filePath
+                wget -cq "https://success.myshn.net/@api/deki/files/7233/SHN-Security-Integrator-GovCloud.zip?revision=1" -O "$filePath/SHN-Security-Integrator-GovCloud.zip"
+                if [ -f "$filePath/SHN-Security-Integrator-GovCloud.zip" ]; then
+                    print_green "$fileNameGov downloaded to $filePath directory." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.05; done; echo ""
+                else
+                    echo "Error: $fileName not downloaded to $filePath directory."
+                fi
+                echo ""
                 break
-                ;;
-            "Quit")
-                exit
                 ;;
             *) echo "Invalid option $REPLY";;
         esac
@@ -174,6 +174,7 @@ echo "1) North America"
 echo "2) Central America"
 echo "3) South America"
 read region_choice
+echo ""
 
 if ! [[ "$region_choice" =~ ^[1-3]$ ]]; then
   echo "Invalid region choice."
@@ -197,6 +198,7 @@ for i in "${!timezones[@]}"; do
     echo "$(($i+1))) ${timezones[$i]}"
 done
 read selection
+echo ""
 
 if ! [[ "$selection" =~ ^[1-9][0-9]*$ ]] || (( selection > ${#timezones[@]} )); then
     echo "Invalid selection."
