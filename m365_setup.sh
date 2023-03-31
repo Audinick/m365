@@ -1,11 +1,17 @@
 #!/bin/bash
 
 # Variables
+app_id=
 filePath=$HOME/Downloads
 fileName="SHN-DLP-Monitor.app"
 fileNameGov="SHN-Security-Integrator-GovCloud.zip"
 domain="yourdomain"
 appName="SHN DLP Monitor"
+appCatalog="$selected_site/sites/appcatalog"
+connectedAs=
+selected_site=
+timezone_value=
+disable_custom_app_auth=
 
 
 # Function to output red text
@@ -22,14 +28,15 @@ print_green() {
 if [[ $(m365 status) == *"Logged out"* ]]; then
     print_red "NOT currently logged in Microsoft 365." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.04; done; echo ""
     echo ""
-    #echo "Not currently logged into Microsoft 365..."
-    echo "Logging in to Microsoft 365..."
+    print_green "Logging in to Microsoft 365..." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.04; done; echo ""
     m365 login
 else 
-  echo ""
-  print_green "Currently logged into m365 cli." | while IFS= read -n1 c; do echo -n "$c"; sleep 0.05; done; echo ""
-  echo ""
+    echo ""
+    print_green "Currently logged into M365 cli as:" | while IFS= read -n1 c; do echo -n "$c"; sleep 0.04; done; echo ""
+    m365 status | grep -oE '"connectedAs":\s*"[^"]+"' | cut -d '"' -f 4
+    echo ""
 fi
+
 
 # -------------------------------------
 # Get list of sites
@@ -205,6 +212,65 @@ if ! [[ "$selection" =~ ^[1-9][0-9]*$ ]] || (( selection > ${#timezones[@]} )); 
     exit 1
 fi
 
-selected_value=${values[$(($selection-1))]}
+timezone_value=${values[$(($selection-1))]}
 
-echo "You selected ${timezones[$(($selection-1))]}, which has a value of $selected_value."
+echo "You selected ${timezones[$(($selection-1))]}, which has a value of $timezone_value./n"
+
+
+# Create an SPO appcatalog site
+m365 spo tenant appcatalog add -u "$appCatalog" --owner "$connectedAs" --timeZone $timezone_value --wait --force
+
+if [ $? -eq 0 ]; then
+  echo "$appCatalog successfully created./n"
+else
+  echo "Error occurred while creating $appCatalog./n"
+fi
+
+# Get the current value of DisableCustomAppAuthentication
+disable_custom_app_auth=$(m365 spo tenant settings list | grep DisableCustomAppAuthentication | awk '{print $2}')
+
+if [ -z "$disable_custom_app_auth" ]; then
+  echo "Error: Unable to retrieve DisableCustomAppAuthentication value."
+  exit 1
+fi
+
+# Check if the value is true
+if [ "$disable_custom_app_auth" == "true" ]; then
+  # Set the value to false
+  m365 spo tenant settings set --DisableCustomAppAuthentication false
+  if [ "$?" -eq 0 ]; then
+    echo "DisableCustomAppAuthentication has been set to false./n"
+  else
+    echo "Error: Unable to set DisableCustomAppAuthentication value to false./n"
+    exit 1
+  fi
+else
+  echo "DisableCustomAppAuthentication is already false./n"
+fi
+
+# Check if the site collection app catalog already exists
+if m365 spo site appcatalog get -u $appCatalog &>/dev/null; then
+  echo "Site collection app catalog already exists./n"
+else
+  # Try to create the site collection app catalog
+  if m365 spo site appcatalog add -u $appCatalog; then
+    echo "Site collection app catalog has been created./n"
+  else
+    echo "Error creating site collection app catalog./n"
+    exit 1
+  fi
+fi
+
+
+# Adds an app to the specified SharePoint Online app catalog
+app_id=$(m365 spo app add --filePath "$filePath/$fileName" --overwrite --output json | jq -r '.UniqueId')
+
+# Check if the app_id is empty
+if [[ -z "$app_id" ]]; then
+  echo "Failed to add app to app catalog/n"
+  exit 1
+else
+  echo "App added successfully with ID: $app_id/n"
+fi
+
+

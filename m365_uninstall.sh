@@ -21,7 +21,14 @@ print_color() {
 # Get list of sites with "appcatalog" in the URL
 sites=$(m365 spo site list -o json | jq '.[] | select(.Url | contains("appcatalog")) | .Url')
 if [ -z "$sites" ]; then
-  print_color red "No appcatalog sites were found."
+  print_color red "No appcatalog sites were found.\n"
+  print_color yellow "Checking DisableCustomAppAuthentication value...\n"
+  if m365 spo tenant settings get | grep -q 'DisableCustomAppAuthentication": false,'; then
+    m365 spo tenant settings set --DisableCustomAppAuthentication true
+    print_color green "DisableCustomAppAuthentication was set to true.\n"
+  else
+    print_color yellow "DisableCustomAppAuthentication is already set to true.\n"
+  fi
   exit 1
 fi
 
@@ -60,6 +67,14 @@ select selected_site in $sites; do
     print_color red "Failed to remove app catalog site from selected site."
   fi
 done
+
+# Disable custom app authentication
+echo "Disabling custom app authentication..."
+if m365 spo tenant settings set --DisableCustomAppAuthentication true; then
+  print_color green "Custom app authentication has been disabled."
+else
+  print_color red "Failed to disable custom app authentication."
+fi
 
 echo ""
 print_color green "Script execution completed successfully." 
