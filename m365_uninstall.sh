@@ -50,7 +50,7 @@ select selected_site in $sites; do
     print_color green "ProductID for app 'DLP Monitor' on selected site: $product_id"
   
     # Remove app
-    echo "Removing app..."
+    echo "Removing $app with $product_id"
     if m365 spo app remove --id $product_id --appCatalogScope tenant --appCatalogUrl $selected_site --confirm; then
       print_color green "App 'DLP Monitor' was successfully removed from selected site."
     else

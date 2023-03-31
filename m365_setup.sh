@@ -1,17 +1,16 @@
 #!/bin/bash
 
 # Variables
-app_id=
+#app_id=
 filePath=$HOME/Downloads
 fileName="SHN-DLP-Monitor.app"
 fileNameGov="SHN-Security-Integrator-GovCloud.zip"
-domain="yourdomain"
 appName="SHN DLP Monitor"
 appCatalog="$selected_site/sites/appcatalog"
-connectedAs=
+#connectedAs=
 selected_site=
-timezone_value=
-disable_custom_app_auth=
+#timezone_value=
+#disable_custom_app_auth=
 
 
 # Function to output red text
@@ -33,7 +32,8 @@ if [[ $(m365 status) == *"Logged out"* ]]; then
 else 
     echo ""
     print_green "Currently logged into M365 cli as:" | while IFS= read -n1 c; do echo -n "$c"; sleep 0.04; done; echo ""
-    m365 status | grep -oE '"connectedAs":\s*"[^"]+"' | cut -d '"' -f 4
+    connectedAs=$(m365 status | grep -oE '"connectedAs":\s*"[^"]+"' | cut -d '"' -f 4)
+    echo $connectedAs
     echo ""
 fi
 
@@ -214,17 +214,37 @@ fi
 
 timezone_value=${values[$(($selection-1))]}
 
-echo "You selected ${timezones[$(($selection-1))]}, which has a value of $timezone_value./n"
+echo "You selected ${timezones[$(($selection-1))]}, which has a value of $timezone_value."
+echo ""
 
+
+selected_site="${sites_array[$((site_number-1))]}"
+selected_site="${selected_site#\"}"  # remove leading quote
+selected_site="${selected_site%\"}"  # Remove trailing quote
+selected_site="${selected_site%/}"  # Remove trailing slash
+#echo "Selected site: $selected_site"
+
+appCatalog="$selected_site/sites/appcatalog"
+# Confirm the entered value
+read -p "The app catalog URL is set to $appCatalog. Is this correct? [Y/n]: " confirm
+echo ""
+
+# If the user enters anything other than "Y" or "y", exit the script
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+  echo "Exiting script..."
+  exit 1
+fi
 
 # Create an SPO appcatalog site
 m365 spo tenant appcatalog add -u "$appCatalog" --owner "$connectedAs" --timeZone $timezone_value --wait --force
 
 if [ $? -eq 0 ]; then
-  echo "$appCatalog successfully created./n"
+  echo "$appCatalog successfully created."
 else
-  echo "Error occurred while creating $appCatalog./n"
+  echo "Error occurred while creating $appCatalog."
+  exit 1
 fi
+echo ""
 
 # Get the current value of DisableCustomAppAuthentication
 disable_custom_app_auth=$(m365 spo tenant settings list | grep DisableCustomAppAuthentication | awk '{print $2}')
@@ -239,68 +259,116 @@ if [ "$disable_custom_app_auth" == "true" ]; then
   # Set the value to false
   m365 spo tenant settings set --DisableCustomAppAuthentication false
   if [ "$?" -eq 0 ]; then
-    echo "DisableCustomAppAuthentication has been set to false./n"
+    echo "DisableCustomAppAuthentication has been set to false."
   else
-    echo "Error: Unable to set DisableCustomAppAuthentication value to false./n"
+    echo "Error: Unable to set DisableCustomAppAuthentication value to false."
     exit 1
   fi
 else
-  echo "DisableCustomAppAuthentication is already false./n"
+  echo "DisableCustomAppAuthentication is already false."
 fi
+echo ""
 
 # Check if the site collection app catalog already exists
 if m365 spo site appcatalog get -u $appCatalog &>/dev/null; then
-  echo "Site collection app catalog already exists./n"
+  echo "Site collection app catalog already exists."
 else
   # Try to create the site collection app catalog
   if m365 spo site appcatalog add -u $appCatalog; then
-    echo "Site collection app catalog has been created./n"
+    echo "Site collection app catalog has been created."
   else
-    echo "Error creating site collection app catalog./n"
+    echo "Error creating site collection app catalog."
     exit 1
   fi
 fi
+echo ""
 
+#---------------------------------
 
+seconds=15
+interval=5
+
+while [ $seconds -gt 0 ]
+do
+    echo "Countdown: $seconds seconds remaining"
+    sleep $interval
+    seconds=$(( $seconds - $interval ))
+done
+
+echo "Countdown finished"
+
+#---------------------------------
+
+echo "The file path is: $filePath"
+echo "The file name is: $fileName"
+echo ""
+
+read -p "Is this correct? (y/n) " choice
+echo ""
+case "$choice" in
+  y|Y ) app_id=$(m365 spo app add --filePath "$filePath/$fileName" --overwrite --output json | jq -r '.UniqueId')
+        echo "App ID: $app_id"
+        ;;
+  n|N ) echo "Exiting..."
+        exit 1
+        ;;
+  * ) echo "Invalid choice. Exiting..."
+      exit 1
+      ;;
+esac
+echo ""
+
+: '
 # Adds an app to the specified SharePoint Online app catalog
-app_id=$(m365 spo app add --filePath "$filePath/$fileName" --overwrite --output json | jq -r '.UniqueId')
+ app_id=$(m365 spo app add --filePath "$filePath/$fileName" --overwrite --output json | jq -r '.UniqueId')
+# app_id=$(m365 spo app add --filePath "$HOME/Downloads/SHN-DLP-Monitor.app" --overwrite --output json | jq -r '.UniqueId')
 
 # Check if the app_id is empty
 if [[ -z "$app_id" ]]; then
-  echo "Failed to add app to app catalog/n"
+  echo "Failed to add app to app catalog"
   exit 1
 else
-  echo "App added successfully with ID: $app_id/n"
+  echo "App added successfully with ID: $app_id"
 fi
+echo ""
+'
 
 # Lists apps from the specified app catalog
 # validates the app exists
-if m365 spo app list --appCatalogUrl "$appCatalog" ; then
-    echo "App exists/n"
+# if m365 spo app list --appCatalogUrl "$appCatalog" ; then
+if m365 spo app list --appCatalogUrl "$appCatalog" --output json >/dev/null 2>&1; then
+    echo "App exists"
 else
-    echo "App not found/n"
+    echo "App not found."
     exit 1
 fi
-
+echo ""
 
 # Installs an app from the specified app catalog in the site
 if ! m365 spo app install --id "$app_id" --siteUrl "$appCatalog"; then
-    echo "Failed to install app with id: $app_id/n"
+    echo "Failed to install app with id: $app_id"
     exit 1
 fi
 
-echo "App with id: $app_id has been installed successfully./n"
+echo ""
+echo "App with id: $app_id has been installed successfully."
+echo ""
 
 # Display a message to the user
-echo "This script will open the default web browser to https://compliance.microsoft.com/auditlogsearch/n"
+echo "This script will open the default web browser to https://compliance.microsoft.com/auditlogsearch"
+echo ""
 echo "Do you want to continue? (y/n)/n"
+echo ""
 
 # Read user input
 read input
 
 # If user confirms, open the web browser
 if [ "$input" == "y" ]; then
-  xdg-open "https://compliance.microsoft.com/auditlogsearch"
+  open "https://compliance.microsoft.com/auditlogsearch"
 else
-  echo "Script canceled by user./n"
+  echo "Script canceled by user."
 fi
+
+echo ""
+echo "Script has finished successfully."
