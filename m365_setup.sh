@@ -273,4 +273,34 @@ else
   echo "App added successfully with ID: $app_id/n"
 fi
 
+# Lists apps from the specified app catalog
+# validates the app exists
+if m365 spo app list --appCatalogUrl "$appCatalog" ; then
+    echo "App exists/n"
+else
+    echo "App not found/n"
+    exit 1
+fi
 
+
+# Installs an app from the specified app catalog in the site
+if ! m365 spo app install --id "$app_id" --siteUrl "$appCatalog"; then
+    echo "Failed to install app with id: $app_id/n"
+    exit 1
+fi
+
+echo "App with id: $app_id has been installed successfully./n"
+
+# Display a message to the user
+echo "This script will open the default web browser to https://compliance.microsoft.com/auditlogsearch/n"
+echo "Do you want to continue? (y/n)/n"
+
+# Read user input
+read input
+
+# If user confirms, open the web browser
+if [ "$input" == "y" ]; then
+  xdg-open "https://compliance.microsoft.com/auditlogsearch"
+else
+  echo "Script canceled by user./n"
+fi
